@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Deep Dive – Immersive Data Story</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <style>
+    /* Auth Modal */
+    .auth-modal {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(7,16,36,0.9); display: none; align-items: center;
+      justify-content: center; z-index: 3000; opacity: 0; transition: opacity 0.4s;
+    }
+    .auth-modal.show { opacity: 1; }
+    .auth-form-container {
+      background: linear-gradient(135deg, rgba(30,40,70,0.95) 60%, rgba(80,120,180,0.25) 100%);
+      border-radius: 24px; padding: 32px; max-width: 420px; width: 90%;
+      box-shadow: 0 8px 32px rgba(44,62,80,0.3);
+      border: 1.5px solid rgba(255,255,255,0.15);
+    }
+    .auth-form h2 { color: var(--accent); margin-top: 0; text-align: center; }
+    .auth-form input {
+      width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px;
+      border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      color: white; font-size: 1em;
+    }
+    .auth-form button {
+      width: 100%; padding: 12px; margin: 15px 0 10px 0;
+      background: var(--accent); color: white; border: none;
+      border-radius: 8px; cursor: pointer; font-weight: 600;
+      font-size: 1.1em; transition: all 0.3s;
+    }
+    .auth-form button:hover { background: #00a8e6; transform: translateY(-2px); }
+    .auth-toggle { text-align: center; margin-top: 15px; color: var(--muted); }
+    .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    
+    /* User Menu */
+    .user-menu {
+      position: relative; display: none;
+    }
+    .user-menu.active { display: flex; align-items: center; gap: 12px; }
+    .user-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; color: white; font-weight: bold;
+      cursor: pointer; font-size: 1.1em;
+    }
+    .user-dropdown {
+      position: absolute; top: 50px; right: 0; background: var(--panel);
+      border-radius: 12px; padding: 10px; min-width: 180px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: none;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .user-dropdown.show { display: block; }
+    .user-dropdown a {
+      display: block; padding: 10px; color: var(--muted);
+      text-decoration: none; border-radius: 6px; transition: all 0.2s;
+    }
+    .user-dropdown a:hover { background: var(--glass); color: var(--accent); }
+    
+    /* Save View Panel */
+    .save-panel {
+      position: absolute; top: 80px; right: 12px; z-index: 700;
+      background: var(--panel); padding: 20px; border-radius: 12px;
+      width: 300px; display: none; box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+      border: 2px solid var(--accent);
+    }
+    .save-panel.show { display: block; }
+    .save-panel h3 { margin-top: 0; color: var(--accent); }
+    .save-panel input, .save-panel textarea {
+      width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
+      color: white;
+    }
+    .save-panel label { color: var(--muted); display: block; margin-top: 10px; }
+    
+    /* Saved Views Sidebar */
+    .saved-views-sidebar {
+      position: fixed; right: -360px; top: 0; width: 340px; height: 100vh;
+      background: var(--panel); box-shadow: -4px 0 24px rgba(0,0,0,0.3);
+      z-index: 2000; transition: right 0.4s; overflow-y: auto; padding: 20px;
+    }
+    .saved-views-sidebar.open { right: 0; }
+    .saved-view-card {
+      background: var(--card); padding: 15px; border-radius: 10px;
+      margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .saved-view-card:hover {
+      transform: translateX(-5px); border-color: var(--accent);
+    }
+    .saved-view-card h4 { margin: 0 0 8px 0; color: var(--accent); }
+    .saved-view-card p { margin: 0; color: var(--muted); font-size: 0.9em; }
+    .saved-view-meta {
+      display: flex; justify-content: space-between; margin-top: 8px;
+      font-size: 0.85em; color: var(--muted);
+    }
+    
+    /* Notification Toast */
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; background: var(--panel);
+      padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      border-left: 4px solid var(--accent); z-index: 4000; display: none;
+      animation: slideIn 0.3s ease-out;
+    }
+    .toast.show { display: block; }
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    /* Loading Spinner */
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(7,16,36,0.8); display: none; align-items: center;
+      justify-content: center; z-index: 5000;
+    }
+    .loading-overlay.show { display: flex; }
+    .spinner {
+      width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+      position: absolute; right: 12px; top: 80px; z-index: 650;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .action-btn {
+      background: var(--panel); color: white; border: 2px solid var(--accent);
+      padding: 10px 16px; border-radius: 10px; cursor: pointer;
+      transition: all 0.2s; font-weight: 600;
+    }
+    .action-btn:hover {
+      background: var(--accent); transform: translateX(-5px);
+    }
+    
+    /* Auth Button */
+    .auth-btn {
+      background: var(--accent); color: white; padding: 8px 18px;
+      border-radius: 8px; text-decoration: none; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .auth-btn:hover { background: #00a8e6; }
+  </style>
+</head>
+<body>
+  <header class="main-header">
+    <div class="header-title-group">
+      <h1><b>Deep Dive</b></h1>
+      <div class="header-subtitle">Immersive Data Stories from Ocean to Sky</div>
+    </div>
+    <nav>
+      <a href="#" class="nav-link">Home</a>
+      <a href="#about" class="nav-link" id="aboutLink">About</a>
+      <a href="#contact" class="nav-link" id="contactLink">Contact</a>
+      <a href="#" class="auth-btn" id="loginBtn">Login</a>
+      <div class="user-menu" id="userMenu">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-dropdown" id="userDropdown">
+          <a href="#" id="profileLink">Profile</a>
+          <a href="#" id="myViewsLink">My Views</a>
+          <a href="#" id="settingsLink">Settings</a>
+          <a href="#" id="logoutBtn">Logout</a>
+        </div>
+      </div>
+    </nav>
+    <img src="https://media.istockphoto.com/vectors/diver-deep-under-water-diving-training-course-open-sea-vector-id586374838?k=20&m=586374838&s=612x612&w=0&h=NfFohrJHdmuIar3y4xtsPy2Nl9x3Ed7ibmYa3fscMrQ=" alt="Diver Logo" class="header-logo" />
