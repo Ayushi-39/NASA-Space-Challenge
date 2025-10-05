@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Deep Dive – Immersive Data Story</title>
   <link rel="stylesheet" href="style.css" />
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Heatmap Plugin -->
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  
   <style>
     /* Auth Modal */
     .auth-modal {
@@ -21,6 +25,7 @@
       border-radius: 24px; padding: 32px; max-width: 420px; width: 90%;
       box-shadow: 0 8px 32px rgba(44,62,80,0.3);
       border: 1.5px solid rgba(255,255,255,0.15);
+      position: relative;
     }
     .auth-form h2 { color: var(--accent); margin-top: 0; text-align: center; }
     .auth-form input {
@@ -74,7 +79,7 @@
     .save-panel input, .save-panel textarea {
       width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px;
       border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);
-      color: white;
+      color: white; box-sizing: border-box;
     }
     .save-panel label { color: var(--muted); display: block; margin-top: 10px; }
     
@@ -100,7 +105,7 @@
       font-size: 0.85em; color: var(--muted);
     }
     
-    /* Notification Toast */
+    /* Toast Notification */
     .toast {
       position: fixed; bottom: 20px; right: 20px; background: var(--panel);
       padding: 15px 20px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
@@ -147,7 +152,7 @@
     .auth-btn {
       background: var(--accent); color: white; padding: 8px 18px;
       border-radius: 8px; text-decoration: none; font-weight: 600;
-      transition: all 0.2s;
+      transition: all 0.2s; display: inline-block;
     }
     .auth-btn:hover { background: #00a8e6; }
   </style>
@@ -174,3 +179,421 @@
       </div>
     </nav>
     <img src="https://media.istockphoto.com/vectors/diver-deep-under-water-diving-training-course-open-sea-vector-id586374838?k=20&m=586374838&s=612x612&w=0&h=NfFohrJHdmuIar3y4xtsPy2Nl9x3Ed7ibmYa3fscMrQ=" alt="Diver Logo" class="header-logo" />
+  </header>
+
+  <!-- Auth Modal -->
+  <div id="authModal" class="auth-modal">
+    <div class="auth-form-container">
+      <button class="about-modal-close" id="closeAuth" style="position:absolute;top:10px;right:15px;background:none;border:none;color:var(--accent);font-size:2em;cursor:pointer;">&times;</button>
+      <div id="loginForm" class="auth-form">
+        <h2>Welcome Back</h2>
+        <input type="email" id="loginEmail" placeholder="Email" required />
+        <input type="password" id="loginPassword" placeholder="Password" required />
+        <button id="loginSubmit">Login</button>
+        <div class="auth-toggle">
+          Don't have an account? <a id="showRegister">Register</a>
+        </div>
+      </div>
+      <div id="registerForm" class="auth-form" style="display:none;">
+        <h2>Create Account</h2>
+        <input type="text" id="regUsername" placeholder="Username" required />
+        <input type="email" id="regEmail" placeholder="Email" required />
+        <input type="password" id="regPassword" placeholder="Password" required />
+        <input type="text" id="regFirstName" placeholder="First Name" />
+        <input type="text" id="regLastName" placeholder="Last Name" />
+        <button id="registerSubmit">Register</button>
+        <div class="auth-toggle">
+          Already have an account? <a id="showLogin">Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="about-modal">
+    <div class="about-modal-content">
+      <button class="about-modal-close" id="closeAbout">&times;</button>
+      <h2>About Us</h2>
+      <p><strong>Deep Dive</strong> is a premier online platform dedicated to exploring ideas, knowledge, and insights beyond the surface.</p>
+      <p>Our platform is designed for learners, thinkers, professionals, and enthusiasts who are passionate about exploring topics in depth.</p>
+      <p>At Deep Dive, we believe that learning should be immersive and interactive.</p>
+      <p class="about-modal-highlight">Discover more. Understand better. Think deeper.<br>With Deep Dive, curiosity becomes your greatest tool.</p>
+    </div>
+  </div>
+
+  <!-- Contact Modal -->
+  <div id="contactModal" class="about-modal">
+    <div class="about-modal-content">
+      <button class="about-modal-close" id="closeContact">&times;</button>
+      <h2>Contact Us</h2>
+      <p><strong>Email:</strong> <a href="mailto:info@deepdive.com" style="color:var(--accent);text-decoration:underline;">info@deepdive.com</a></p>
+      <p><strong>Phone:</strong> <a href="tel:7440758956" style="color:var(--accent);text-decoration:underline;">7440758956</a></p>
+      <p><strong>LinkedIn:</strong> <a href="https://linkedin.com/company/deepdive" target="_blank" style="color:var(--accent);text-decoration:underline;">linkedin.com/company/deepdive</a></p>
+      <p><strong>Address:</strong> patel nagar bhopal (M.P.) 462022</p>
+      <p class="about-modal-highlight">We'd love to hear from you!</p>
+    </div>
+  </div>
+
+  <!-- Save View Panel -->
+  <div id="savePanel" class="save-panel">
+    <h3>Save Current View</h3>
+    <label>Title</label>
+    <input type="text" id="saveTitle" placeholder="Enter title" />
+    <label>Description</label>
+    <textarea id="saveDescription" placeholder="Describe this view" rows="3"></textarea>
+    <label>Tags (comma-separated)</label>
+    <input type="text" id="saveTags" placeholder="ocean, temperature, 2023" />
+    <label style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="savePublic" style="width:auto;" />
+      Make public
+    </label>
+    <button class="action-btn" id="saveViewBtn" style="width:100%;margin-top:15px;">Save View</button>
+    <button class="action-btn" id="cancelSave" style="width:100%;background:transparent;border-color:var(--muted);color:var(--muted);">Cancel</button>
+  </div>
+
+  <!-- Saved Views Sidebar -->
+  <div id="savedViewsSidebar" class="saved-views-sidebar">
+    <h2 style="color:var(--accent);margin-top:0;">My Saved Views</h2>
+    <button class="action-btn" id="closeSidebar" style="width:100%;margin-bottom:15px;">Close</button>
+    <div id="savedViewsList"></div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons" id="actionButtons" style="display:none;">
+    <button class="action-btn" id="saveCurrentBtn">💾 Save View</button>
+    <button class="action-btn" id="viewSavedBtn">📁 My Views</button>
+    <button class="action-btn" id="shareBtn">🔗 Share</button>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <div id="toastMessage"></div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+  </div>
+
+  <div id="starfield"></div>
+
+  <div class="app">
+    <aside class="story">
+      <h1>Deep Dive – Oceans to Sky</h1>
+      <div class="byline">Scrollytelling demo using NASA tiles – click chapters to explore layers.</div>
+      <div class="chapters" id="chapters">
+        <div class="chapter active" data-chapter="intro">
+          <h3>Intro</h3>
+          <p>Welcome! Explore ocean heat, coral bleaching, and clouds using real NASA data overlays.</p>
+        </div>
+        <div class="chapter" data-chapter="heat">
+          <h3>1. Ocean Heat</h3>
+          <p>Sea-surface temperature anomalies show where oceans store and release heat.</p>
+        </div>
+        <div class="chapter" data-chapter="coral">
+          <h3>2. Coral Bleaching</h3>
+          <p>Marine heat waves stress coral reefs – warning signals for ecosystems.</p>
+        </div>
+        <div class="chapter" data-chapter="clouds">
+          <h3>3. Clouds & Aerosols</h3>
+          <p>Cloud cover and aerosols affect sunlight and weather patterns.</p>
+        </div>
+      </div>
+    </aside>
+
+    <section class="map-wrap">
+      <div id="map"></div>
+      <div class="controls" id="layerButtons">
+        <button data-layer="heat" class="active">Ocean Heat</button>
+        <button data-layer="coral">Coral</button>
+        <button data-layer="clouds">Clouds</button>
+      </div>
+      <div class="time-slider">
+        <label for="timeRange" style="font-weight:bold; margin-right:10px;">Month:</label>
+        <input type="range" id="timeRange" min="0" max="10" value="5" />
+        <div class="time-display" id="timeLabel" style="font-size:1.2em; font-weight:bold; margin-left:10px;">2019-07-01</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="considerations">
+    <h2>Welcome to Deep Dive – Explore Knowledge Beyond the Surface</h2>
+    <p>Deep Dive is your ultimate destination for exploring ideas, insights, and discoveries at a deeper level.</p>
+    <p>Whether you are a student, professional, or lifelong learner, Deep Dive is designed to satisfy your intellectual curiosity.</p>
+  </section>
+
+  <section class="summary">
+    <h2>Project Summary</h2>
+    <p><strong>Deep Dive</strong> is an immersive, interactive web experience that visualizes real NASA Earth data.</p>
+  </section>
+
+  <footer class="main-footer">
+    <div class="footer-content">
+      <img src="https://media.istockphoto.com/vectors/diver-deep-under-water-diving-training-course-open-sea-vector-id586374838?k=20&m=586374838&s=612x612&w=0&h=NfFohrJHdmuIar3y4xtsPy2Nl9x3Ed7ibmYa3fscMrQ=" alt="Diver Logo" class="footer-logo" />
+      <div class="footer-links">
+        <a href="#" class="footer-link">Home</a>
+        <a href="#contact" class="footer-link">Contact</a>
+        <a href="#" class="footer-link">Privacy</a>
+        <a href="#" class="footer-link">Terms</a>
+      </div>
+      <div class="footer-copy">&copy; 2025 Deep Dive. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="script.js"></script>
+  <script>
+    // ============ API Configuration ============
+    const API_BASE = 'http://localhost:5000/api';
+    let authToken = localStorage.getItem('deepdive_token');
+    let currentUser = null;
+
+    // ============ Modal Logic ============
+    function showModal(modal) {
+      modal.style.display = 'flex';
+      setTimeout(() => modal.classList.add('show'), 10);
+    }
+    function hideModal(modal) {
+      modal.classList.remove('show');
+      setTimeout(() => modal.style.display = 'none', 400);
+    }
+
+    // About modal
+    const aboutLink = document.getElementById('aboutLink');
+    const aboutModal = document.getElementById('aboutModal');
+    const closeAbout = document.getElementById('closeAbout');
+    aboutLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      showModal(aboutModal);
+    });
+    closeAbout.addEventListener('click', function() {
+      hideModal(aboutModal);
+    });
+    aboutModal.addEventListener('click', function(e) {
+      if(e.target === aboutModal) hideModal(aboutModal);
+    });
+
+    // Contact modal
+    const contactLink = document.getElementById('contactLink');
+    const contactModal = document.getElementById('contactModal');
+    const closeContact = document.getElementById('closeContact');
+    contactLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      showModal(contactModal);
+    });
+    closeContact.addEventListener('click', function() {
+      hideModal(contactModal);
+    });
+    contactModal.addEventListener('click', function(e) {
+      if(e.target === contactModal) hideModal(contactModal);
+    });
+
+    // Starfield background
+    const starfield = document.getElementById('starfield');
+    starfield.style.position = 'fixed';
+    starfield.style.top = '0';
+    starfield.style.left = '0';
+    starfield.style.width = '100vw';
+    starfield.style.height = '100vh';
+    starfield.style.zIndex = '0';
+    starfield.style.pointerEvents = 'none';
+    starfield.style.overflow = 'hidden';
+
+    function createStar() {
+      const star = document.createElement('div');
+      const size = Math.random() * 2 + 1;
+      star.style.position = 'absolute';
+      star.style.width = size + 'px';
+      star.style.height = size + 'px';
+      star.style.borderRadius = '50%';
+      star.style.background = 'white';
+      star.style.opacity = Math.random() * 0.7 + 0.3;
+      const startY = Math.random() * window.innerHeight;
+      star.style.top = startY + 'px';
+      star.style.left = Math.random() * window.innerWidth + 'px';
+      const duration = 8 + Math.random() * 12;
+      star.style.animationDuration = duration + 's';
+      star.style.animationDelay = (-startY / window.innerHeight * duration) + 's';
+      starfield.appendChild(star);
+    }
+    
+    for(let i = 0; i < 100; i++) createStar();
+
+    // ============ UI Helper Functions ============
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+      toastMessage.textContent = message;
+      toast.style.borderLeftColor = type === 'error' ? '#ff4444' : 'var(--accent)';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function showLoading() {
+      document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('show');
+    }
+
+    // ============ API Helper Functions ============
+    async function apiCall(endpoint, options = {}) {
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken && { 'Authorization': `Bearer ${authToken}` })
+        },
+        ...options
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}${endpoint}`, config);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'API request failed');
+        }
+        
+        return data;
+      } catch (error) {
+        showToast(error.message, 'error');
+        throw error;
+      }
+    }
+
+    // ============ Authentication ============
+    async function login(email, password) {
+      showLoading();
+      try {
+        const data = await apiCall('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ email, password })
+        });
+        
+        authToken = data.token;
+        localStorage.setItem('deepdive_token', authToken);
+        currentUser = data.user;
+        
+        updateUIForAuth();
+        hideModal(document.getElementById('authModal'));
+        showToast('Welcome back!');
+      } catch (error) {
+        console.error('Login failed:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function register(userData) {
+      showLoading();
+      try {
+        const data = await apiCall('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify(userData)
+        });
+        
+        authToken = data.token;
+        localStorage.setItem('deepdive_token', authToken);
+        currentUser = data.user;
+        
+        updateUIForAuth();
+        hideModal(document.getElementById('authModal'));
+        showToast('Account created successfully!');
+      } catch (error) {
+        console.error('Registration failed:', error);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function logout() {
+      authToken = null;
+      currentUser = null;
+      localStorage.removeItem('deepdive_token');
+      updateUIForAuth();
+      showToast('Logged out successfully');
+    }
+
+    function updateUIForAuth() {
+      const loginBtn = document.getElementById('loginBtn');
+      const userMenu = document.getElementById('userMenu');
+      const actionButtons = document.getElementById('actionButtons');
+      
+      if (currentUser) {
+        loginBtn.style.display = 'none';
+        userMenu.classList.add('active');
+        actionButtons.style.display = 'flex';
+        
+        const avatar = document.getElementById('userAvatar');
+        avatar.textContent = currentUser.username.charAt(0).toUpperCase();
+      } else {
+        loginBtn.style.display = 'inline-block';
+        userMenu.classList.remove('active');
+        actionButtons.style.display = 'none';
+      }
+    }
+
+    // ============ Event Listeners ============
+    
+    // Auth Modal
+    document.getElementById('loginBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      showModal(document.getElementById('authModal'));
+    });
+
+    document.getElementById('closeAuth').addEventListener('click', () => {
+      hideModal(document.getElementById('authModal'));
+    });
+
+    document.getElementById('showRegister').addEventListener('click', () => {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('registerForm').style.display = 'block';
+    });
+
+    document.getElementById('showLogin').addEventListener('click', () => {
+      document.getElementById('registerForm').style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    });
+
+    document.getElementById('loginSubmit').addEventListener('click', () => {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      login(email, password);
+    });
+
+    document.getElementById('registerSubmit').addEventListener('click', () => {
+      const userData = {
+        username: document.getElementById('regUsername').value,
+        email: document.getElementById('regEmail').value,
+        password: document.getElementById('regPassword').value,
+        firstName: document.getElementById('regFirstName').value,
+        lastName: document.getElementById('regLastName').value
+      };
+      register(userData);
+    });
+
+    // User Menu
+    document.getElementById('userAvatar').addEventListener('click', () => {
+      document.getElementById('userDropdown').classList.toggle('show');
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+      e.preventDefault();
+      logout();
+    });
+
+    // Save Panel
+    document.getElementById('saveCurrentBtn').addEventListener('click', () => {
+      document.getElementById('savePanel').classList.add('show');
+    });
+
+    document.getElementById('cancelSave').addEventListener('click', () => {
+      document.getElementById('savePanel').classList.remove('show');
+    });
+
+    // Initialize
+    updateUIForAuth();
+  </script>
+</body>
+</html>
